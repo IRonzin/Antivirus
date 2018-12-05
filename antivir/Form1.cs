@@ -50,57 +50,62 @@ namespace antivir
         int y = 0;
 
         // провверка, исполняемый файл или нет
-        private bool PEzag(string h)
+        private bool CheckIsPE(string filePath)
         {
-            bool e = false;
-            long g = 0;
-            int b = 0;
+            long byteNumber = 0;
+            int readByte = 0;
             bool ep = false;
             bool pe = false;
-            int smesh = 0;
-            using (FileStream fs = new FileStream(h, FileMode.Open, FileAccess.Read))
+            var offset = FindOffset(filePath);
+            byteNumber = 0;
+            using (FileStream fs = new FileStream(filePath, FileMode.Open, FileAccess.Read))
             {
 
                 do
                 {
-                    b = fs.ReadByte();
-                    if (g == 60)
-                    {
-                        smesh = b;
-                    }
-                    if (g == 61)
-                    {
-                        smesh += b * 16 * 16;
-                    }
-
-                    g++;
-                }
-                while (b != -1);
-            }
-            g = 0;
-            using (FileStream fs = new FileStream(h, FileMode.Open, FileAccess.Read))
-            {
-
-                do
-                {
-                    b = fs.ReadByte();
-                    if ((g == smesh) && (b.ToString("x2") == "50")) //X2 prints the string as two uppercase hexadecimal characters
+                    readByte = fs.ReadByte();
+                    if ((byteNumber == offset) && (readByte.ToString("x2") == "50")) //X2 prints the string as two uppercase hexadecimal characters
                     {
                         ep = true;
                     }
-                    if ((g == smesh + 1) && (b.ToString("x2") == "45") && ep)
+                    if ((byteNumber == offset + 1) && (readByte.ToString("x2") == "45") && ep)
                     {
                         pe = true;
                     }
-                    g++;
+                    byteNumber++;
                 }
-                while (b != -1);
-                if (pe)
-                    e = true;
-                else
-                    e = false;
+                while (readByte != -1);
+
             }
-            return e;
+
+            return pe;
+        }
+
+        private static int FindOffset(string filePath)
+        {
+            var byteNumber = 0;
+            var readByte = 0;
+            var offset = 0;
+            using (FileStream fs = new FileStream(filePath, FileMode.Open, FileAccess.Read))
+            {
+                do
+                {
+                    readByte = fs.ReadByte();
+                    if (byteNumber == 60)
+                    {
+                        offset = readByte;
+                    }
+
+                    if (byteNumber == 61)
+                    {
+                        offset += readByte * 16 * 16;
+                    }
+
+                    byteNumber++;
+                } while (readByte != -1);
+            }
+
+            return offset;
         }
 
         // поиск сигнатуры
@@ -195,7 +200,7 @@ namespace antivir
                 //comments.Clear();
                 probability = 0;
                 comments = "";
-                if (PEzag(files[i]) == true)
+                if (CheckIsPE(files[i]) == true)
                 {
                     produces.Clear();
                     ArrayList prArr = new ArrayList();
@@ -558,7 +563,7 @@ namespace antivir
                 
                 dgvStatistic.Rows.Add();
                 string buf = "Вообще не PE EXE!";
-                if (PEzag(files[i]) == true)
+                if (CheckIsPE(files[i]) == true)
                 {
 
                     bool flagSign = Find(signatures[1], files[i]);
