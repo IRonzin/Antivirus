@@ -13,13 +13,6 @@ namespace antivir
 {
     public partial class Form1 : Form
     {
-        public class knowledge
-        {
-            public string signatures;
-            public bool produce = false;
-            public string comment;
-        }
-
         public Form1()
         {
             InitializeComponent();
@@ -43,7 +36,6 @@ namespace antivir
                 , "ff152c104000" };
         public bool[] produce = { false, false, false, false, false, false, false, false, false, false, false, false };
         public ArrayList produces = new ArrayList();
-        public string[] comments = { };
 
         double p_1 = 1;
         string[] files = { };
@@ -52,30 +44,35 @@ namespace antivir
         // провверка, исполняемый файл или нет
         private bool CheckIsPE(string filePath)
         {
-            long byteNumber = 0;
-            int readByte = 0;
-            bool ep = false;
-            bool pe = false;
             var offset = FindOffset(filePath);
-            byteNumber = 0;
+
+            return CheckIsPeByOffset(filePath, offset);
+        }
+
+        private static bool CheckIsPeByOffset(string filePath, int offset)
+        {
+            long byteNumber=0;
+            var ep = false;
+            var pe = false;
+            int readByte;
             using (FileStream fs = new FileStream(filePath, FileMode.Open, FileAccess.Read))
             {
-
                 do
                 {
                     readByte = fs.ReadByte();
-                    if ((byteNumber == offset) && (readByte.ToString("x2") == "50")) //X2 prints the string as two uppercase hexadecimal characters
+                    if ((byteNumber == offset) && (readByte.ToString("x2") == "50")
+                    ) //X2 prints the string as two uppercase hexadecimal characters
                     {
                         ep = true;
                     }
+
                     if ((byteNumber == offset + 1) && (readByte.ToString("x2") == "45") && ep)
                     {
                         pe = true;
                     }
-                    byteNumber++;
-                }
-                while (readByte != -1);
 
+                    byteNumber++;
+                } while (readByte != -1);
             }
 
             return pe;
@@ -83,7 +80,7 @@ namespace antivir
 
         private static int FindOffset(string filePath)
         {
-            var byteNumber = 0;
+            long byteNumber = 0;
             var readByte = 0;
             var offset = 0;
             using (FileStream fs = new FileStream(filePath, FileMode.Open, FileAccess.Read))
@@ -177,33 +174,25 @@ namespace antivir
                 selectDir();
             }
 
-            for (int i = dgvStatistic.Rows.Count - 1; i >= 0; i--)
-            {
-                dgvStatistic.Rows.Remove(dgvStatistic.Rows[i]);
-            }
+            dgvStatistic.Rows.Clear();
 
             int idx = 0;
-            // ArrayList probability = new ArrayList();
-            // ArrayList comments = new ArrayList();
+
             double probability = 0;
-            String comments = "";
+            var comments = "";
 
             for (int i = 0; i < files.Length; i++)
             {
                 dgvStatistic.Rows.Add();
                 string[] buf = new string[10];
-                int pp = 0;
-                double f = 1;
                 double[] p = new double[10];
 
-                //probability.Clear();
-                //comments.Clear();
                 probability = 0;
                 comments = "";
                 if (CheckIsPE(files[i]) == true)
                 {
                     produces.Clear();
-                    ArrayList prArr = new ArrayList();
+                    var prArr = new List<double>();
                     ArrayList comment = new ArrayList();
                     foreach (var sign in signatures)
                     {
@@ -387,33 +376,7 @@ namespace antivir
 
                     }
 
-                    double o = 0;
-                    int y = 0;
-                    int u = 0;
-
-
-                    for (; u < prArr.Count; u++)
-                    {
-                        double vsp_p = (double)prArr[u];
-                        if (vsp_p > probability)
-                        {
-                            probability = (double)prArr[u];
-                            comments = (String)comment[u];
-                        }
-
-                    }
-
-                    if (probability < 0.5) dgvStatistic.Rows[i].DefaultCellStyle.BackColor = Color.Green;
-                    if ((probability >= 0.5) && (probability < 0.85)) dgvStatistic.Rows[i].DefaultCellStyle.BackColor = Color.Yellow; if (probability > 1) probability = 1;
-                    if (probability >= 0.85) dgvStatistic.Rows[i].DefaultCellStyle.BackColor = Color.Red;
-
-                    dgvStatistic.Rows[i].Cells[0].Value = files[i];
-                    if (probability == 0) dgvStatistic.Rows[i].Cells[2].Value = "Просто файл";
-                    else dgvStatistic.Rows[i].Cells[2].Value = comments;
-
-                    dgvStatistic.Rows[i].Cells[1].Value = probability;
-
-
+                    FillDataGrid(prArr, probability, comment, i);
                 }
                 else
                 {
@@ -425,125 +388,38 @@ namespace antivir
 
 
 
-            /*    for (int i = 0; i < files.Length; i++)
+            
+        }
+
+        private void FillDataGrid(List<double> prArr, double probability, ArrayList comments, int i)
+        {
+            var comment = "";
+            for (var u=0; u < prArr.Count; u++)
             {
-                dgvStatistic.Rows.Add();
-                string[] buf = new string[10];
-                int pp = 0;
-                double[] p = new double[10];
-
-                //probability.Clear();
-                //comments.Clear();
-                probability = 0;
-                comments = "";
-                if (PEzag(files[i]) == true)
+                double vsp_p = (double) prArr[u];
+                if (vsp_p > probability)
                 {
-                    produces.Clear();
-                    foreach (var sign in signatures)
-                    {
-                        produces.Add(Find(sign, files[i]));
-                    }
-
-                    if ((bool)produces[7])
-                    {
-                        probability += 0.1;
-                        comments +=  "Ищет различные окна\n";
-                        if ((bool)produces[2])
-                        {
-                            probability = probability + 0.2;
-                            comments = comments + "Ищет окна с подходящим названием\n";
-                            if ((bool)produces[4] && (bool)produces[5])
-                            {
-                                probability = probability + 0.2;
-                                comments = comments + "Завершает все потоки\n";
-                            }
-                            if ((bool)produces[1])
-                            {
-                                probability = probability + 0.4;
-                                comments = comments + "Копирует себя в корневой каталог Windows с именем poserv.exe\n";
-                            }
-                            if ((bool)produces[8])
-                            {
-                                probability = probability + 0.05;
-                                comments = comments + "Создает файлы\n";
-                                if ((bool)produces[9])
-                                {
-                                    probability = probability + 0.2;
-                                    comments = comments + "Удаляет файлы\n";
-                                }
-                            }
-                            if ((bool)produces[10])
-                            {
-                                probability = probability + 0.05;
-                                comments = comments + "GetLocalTime\n";
-                            }
-                            if ((bool)produces[3])
-                            {
-                                probability = probability + 0.1;
-                                comments = comments + "OpenSCManager устанавливает связь с диспетчером управления службами\n";
-                            }
-
-                        }
-                        else
-                        {
-
-                        }
-                    }
-                    else
-                    {
-                        if ((bool)produces[4] && (bool)produces[5])
-                        {
-                            probability = probability + 0.2;
-                            comments = comments + "Завершает все потоки\n";
-                        }
-                        if ((bool)produces[1])
-                        {
-                            probability = probability + 0.4;
-                            comments = comments + "Копирует себя в корневой каталог Windows с именем poserv.exe\n";
-                        }
-                        if ((bool)produces[8])
-                        {
-                            probability = probability + 0.05;
-                            comments = comments + "Создает файлы\n";
-                            if ((bool)produces[9])
-                            {
-                                probability = probability + 0.2;
-                                comments = comments + "Удаляет файлы\n";
-                            }
-                        }
-                        if ((bool)produces[10])
-                        {
-                            probability = probability + 0.05;
-                            comments = comments + "GetLocalTime\n";
-                        }
-                        if ((bool)produces[3])
-                        {
-                            probability = probability + 0.1;
-                            comments = comments + "OpenSCManager устанавливает связь с диспетчером управления службами\n";
-                        }
-
-                    }
-
-                    if (probability < 0.5) dgvStatistic.Rows[i].DefaultCellStyle.BackColor = Color.Green;
-                    if ((probability >= 0.5) && (probability < 0.85)) dgvStatistic.Rows[i].DefaultCellStyle.BackColor = Color.Yellow; if (probability > 1) probability = 1;
-                    if (probability >= 0.85) dgvStatistic.Rows[i].DefaultCellStyle.BackColor = Color.Red;
-
-                    dgvStatistic.Rows[i].Cells[0].Value = files[i];
-                    if (probability == 0) dgvStatistic.Rows[i].Cells[2].Value = "Просто файл";
-                    else dgvStatistic.Rows[i].Cells[2].Value = comments;
-
-                    dgvStatistic.Rows[i].Cells[1].Value = probability;
-                    
-
+                    probability = (double) prArr[u];
+                    comment = (String) comments[u];
                 }
-                else
-                {
-                    dgvStatistic.Rows[i].Cells[0].Value = files[i];
-                    dgvStatistic.Rows[i].Cells[2].Value = "Не исполняемый файл";
+            }
 
-                }
+            probability = SetBackgroundColor(probability, i);
 
-            }*/
+            dgvStatistic.Rows[i].Cells[0].Value = files[i];
+            if (probability == 0) dgvStatistic.Rows[i].Cells[2].Value = "Просто файл";
+            else dgvStatistic.Rows[i].Cells[2].Value = comment;
+
+            dgvStatistic.Rows[i].Cells[1].Value = probability;
+        }
+
+        private double SetBackgroundColor(double probability, int i)
+        {
+            if (probability < 0.5) dgvStatistic.Rows[i].DefaultCellStyle.BackColor = Color.Green;
+            if ((probability >= 0.5) && (probability < 0.85)) dgvStatistic.Rows[i].DefaultCellStyle.BackColor = Color.Yellow;
+            if (probability > 1) probability = 1;
+            if (probability >= 0.85) dgvStatistic.Rows[i].DefaultCellStyle.BackColor = Color.Red;
+            return probability;
         }
 
         private void bSignature_Click(object sender, EventArgs e)
@@ -553,16 +429,13 @@ namespace antivir
                 selectDir();
             }
 
-            for (int i = dgvStatistic.Rows.Count - 1; i >= 0; i--)
-            {
-                dgvStatistic.Rows.Remove(dgvStatistic.Rows[i]);
-            }
+            dgvStatistic.Rows.Clear();
 
             for (int i = 0; i < files.Length; i++)
             {
                 
                 dgvStatistic.Rows.Add();
-                string buf = "Вообще не PE EXE!";
+                string buf = "Не исполняемый файл!";
                 if (CheckIsPE(files[i]) == true)
                 {
 
@@ -578,17 +451,12 @@ namespace antivir
 
                 dgvStatistic.Rows[i].Cells[0].Value = files[i];
                 dgvStatistic.Rows[i].Cells[2].Value = buf;
-                //dgvStatistic.Rows[i].Cells[1].Value = p[y];
             }
         }
 
         private void bClear_Click(object sender, EventArgs e)
         {
-            for (int i = dgvStatistic.Rows.Count-1; i >= 0; i--)
-            {
-                dgvStatistic.Rows.Remove(dgvStatistic.Rows[i]);
-            }
-
+            dgvStatistic.Rows.Clear();
         }
     }
 
